@@ -1,7 +1,0 @@
-selenium==4.16.0
-webdriver-manager==4.0.1
-
-# 註解：版本號僅供參考，不強制指定也能運作，但鎖定版本較穩定。
-# 如果你現在環境已經裝了更新版，可以直接寫套件名稱就好，例如：
-# selenium
-# webdriver-manager
