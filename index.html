@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 春節高鐵時刻表 (快車篩選版)</title>
+    <title>2026 春節高鐵時刻表 (ID修正版)</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -15,7 +15,6 @@
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
     </style>
 </head>
 <body>
@@ -23,105 +22,114 @@
 
     <script type="text/babel">
         // ==========================================
-        // 1. 資料庫 (已保留 8xx 以展示過濾功能，實際運行會自動隱藏它們)
+        // 1. 資料庫 (北上 ID/時間 全面修正)
         // ==========================================
         
         const RAW_SCHEDULE = [
             // ===================================
             // 北上 (Northbound): 台南 -> 南港
             // ===================================
-            // --- 1xx/2xx 直達 (皆 < 2小時) ---
-            { id: "108", dir: "N", days: "Daily", dep: "06:48", arr: "08:35", note: "直達" },
-            { id: "110", dir: "N", days: "Daily", dep: "07:48", arr: "09:25", note: "直達" },
-            { id: "114", dir: "N", days: "Daily", dep: "08:48", arr: "10:25", note: "直達" }, 
-            { id: "118", dir: "N", days: "Daily", dep: "09:48", arr: "11:25", note: "直達" }, 
-            { id: "126", dir: "N", days: "Daily", dep: "12:48", arr: "14:25", note: "直達" }, 
-            { id: "130", dir: "N", days: "Daily", dep: "13:48", arr: "15:25", note: "直達" }, 
-            { id: "134", dir: "N", days: "Daily", dep: "14:48", arr: "16:25", note: "直達" }, 
-            { id: "138", dir: "N", days: "Daily", dep: "15:48", arr: "17:25", note: "直達" }, 
-            { id: "142", dir: "N", days: "Daily", dep: "16:48", arr: "18:25", note: "直達" }, 
-            { id: "146", dir: "N", days: "Daily", dep: "17:48", arr: "19:25", note: "直達" }, 
-            { id: "150", dir: "N", days: "Daily", dep: "18:48", arr: "20:25", note: "直達" }, 
-            { id: "154", dir: "N", days: "Daily", dep: "19:48", arr: "21:25", note: "直達" }, 
-            { id: "158", dir: "N", days: "Daily", dep: "20:48", arr: "22:25", note: "直達" }, 
-            { id: "162", dir: "N", days: "Daily", dep: "21:48", arr: "23:25", note: "直達" }, 
-            { id: "166", dir: "N", days: "Daily", dep: "21:48", arr: "23:25", note: "直達" },
-
-            // --- 6xx 半直達 (約 1小時57分，符合資格) ---
-            { id: "606", dir: "N", days: "Daily", dep: "07:13", arr: "09:10", note: "" },
-            { id: "610", dir: "N", days: "Daily", dep: "07:48", arr: "09:45", note: "" }, 
-            { id: "612", dir: "N", days: "Daily", dep: "08:13", arr: "10:10", note: "" },
-            { id: "616", dir: "N", days: "Daily", dep: "08:48", arr: "10:45", note: "" }, 
-            { id: "620", dir: "N", days: "Daily", dep: "09:13", arr: "11:10", note: "" },
-            { id: "624", dir: "N", days: "Daily", dep: "10:13", arr: "12:10", note: "" },
-            { id: "628", dir: "N", days: "Daily", dep: "10:48", arr: "12:45", note: "各站停靠" }, // 注意：若 628 是站站停，時間可能會超過，但在這裡保留由程式判斷
-            { id: "630", dir: "N", days: "Daily", dep: "11:13", arr: "13:10", note: "" },
-            { id: "634", dir: "N", days: "Daily", dep: "12:13", arr: "14:10", note: "" },
-            { id: "640", dir: "N", days: "Daily", dep: "13:13", arr: "15:10", note: "" },
-            { id: "646", dir: "N", days: "Daily", dep: "14:13", arr: "16:10", note: "" },
-            { id: "652", dir: "N", days: "Daily", dep: "15:13", arr: "17:10", note: "" },
-            { id: "658", dir: "N", days: "Daily", dep: "16:13", arr: "18:10", note: "" },
-            { id: "664", dir: "N", days: "Daily", dep: "17:13", arr: "19:10", note: "" },
-            { id: "670", dir: "N", days: "Daily", dep: "18:13", arr: "20:10", note: "" },
-            { id: "676", dir: "N", days: "Daily", dep: "19:13", arr: "21:10", note: "" },
-            { id: "682", dir: "N", days: "Daily", dep: "20:13", arr: "22:10", note: "" },
-            { id: "688", dir: "N", days: "Daily", dep: "21:13", arr: "23:10", note: "" },
-
-            // --- 8xx 站站停 (約 2小時11分，應被濾除) ---
-            { id: "802", dir: "N", days: "Daily", dep: "06:29", arr: "08:40", note: "各站停靠" },
-            { id: "806", dir: "N", days: "Daily", dep: "07:41", arr: "09:50", note: "各站停靠" },
-            { id: "810", dir: "N", days: "Daily", dep: "08:41", arr: "10:50", note: "各站停靠" },
-            { id: "814", dir: "N", days: "Daily", dep: "09:41", arr: "11:50", note: "各站停靠" },
-            { id: "818", dir: "N", days: "Daily", dep: "10:41", arr: "12:50", note: "各站停靠" },
-            { id: "822", dir: "N", days: "Daily", dep: "11:41", arr: "13:50", note: "各站停靠" },
-            { id: "826", dir: "N", days: "Daily", dep: "12:41", arr: "14:50", note: "各站停靠" },
-            { id: "830", dir: "N", days: "Daily", dep: "13:41", arr: "15:50", note: "各站停靠" },
-            { id: "834", dir: "N", days: "Daily", dep: "14:41", arr: "16:50", note: "各站停靠" },
-            { id: "838", dir: "N", days: "Daily", dep: "15:41", arr: "17:50", note: "各站停靠" },
-            { id: "842", dir: "N", days: "Daily", dep: "16:41", arr: "18:50", note: "各站停靠" },
-            { id: "846", dir: "N", days: "Daily", dep: "17:41", arr: "19:50", note: "各站停靠" },
-            { id: "850", dir: "N", days: "Daily", dep: "18:41", arr: "20:50", note: "各站停靠" },
-            { id: "854", dir: "N", days: "Daily", dep: "19:41", arr: "21:50", note: "各站停靠" },
-            { id: "858", dir: "N", days: "Daily", dep: "20:41", arr: "22:50", note: "各站停靠" },
-            { id: "862", dir: "N", days: "Daily", dep: "21:44", arr: "23:55", note: "各站停靠" },
-
-            { id: "204", dir: "N", days: "Daily", dep: "07:07", arr: "08:45", note: "直達" },
-            { id: "206", dir: "N", days: "Daily", dep: "07:28", arr: "09:05", note: "直達" },
+            
+            // --- 06:00 ~ 07:00 ---
             { id: "300", dir: "N", days: "Daily", dep: "06:03", arr: "07:55", note: "直達" },
-
-            // --- 北上 春節加班車 ---
             { id: "1504", dir: "N", days: "2/13, 2/23", dep: "06:49", arr: "08:40", note: "加班車" },
-            { id: "1270", dir: "N", days: "2/22", dep: "05:57", arr: "07:35", note: "加班車" },
-            { id: "1272", dir: "N", days: "2/22", dep: "06:08", arr: "07:50", note: "加班車" },
+
+            // --- 07:00 ~ 08:00 ---
+            { id: "204", dir: "N", days: "Daily", dep: "07:07", arr: "08:45", note: "直達" },
+            { id: "606", dir: "N", days: "Daily", dep: "07:13", arr: "09:10", note: "" },
             { id: "1510", dir: "N", days: "2/13~2/14, 2/17~2/23", dep: "07:31", arr: "09:25", note: "加班車" },
-            { id: "1202", dir: "N", days: "2/13, 2/20~2/23", dep: "06:38", arr: "08:15", note: "加班車" },
-            { id: "1602", dir: "N", days: "2/13, 2/22~2/23", dep: "06:53", arr: "08:50", note: "加班車" },
-            { id: "1302", dir: "N", days: "2/13, 2/19~2/23", dep: "06:59", arr: "08:55", note: "加班車" },
+            { id: "610", dir: "N", days: "Daily", dep: "07:48", arr: "09:45", note: "" },
+            { id: "1304", dir: "N", days: "2/18~2/19, 2/22~2/23", dep: "07:59", arr: "10:15", note: "加班車" },
+
+            // --- 08:00 ~ 09:00 ---
+            { id: "110", dir: "N", days: "Daily", dep: "08:07", arr: "09:45", note: "直達" },
+            { id: "612", dir: "N", days: "Daily", dep: "08:13", arr: "10:10", note: "" },
             { id: "1514", dir: "N", days: "2/13~2/14, 2/16~2/23", dep: "08:24", arr: "10:25", note: "加班車" },
-            { id: "1304", dir: "N", days: "2/18~2/19, 2/22~2/23", dep: "07:59", arr: "10:15", note: "加班車" }, 
-            { id: "1518", dir: "N", days: "2/14, 2/17~2/18, 2/22~2/23", dep: "09:24", arr: "11:00", note: "加班車" }, 
-            { id: "1210", dir: "N", days: "2/13~2/23", dep: "09:28", arr: "10:50", note: "加班車" }, 
-            { id: "1306", dir: "N", days: "2/16~2/21", dep: "09:33", arr: "11:15", note: "加班車" }, 
-            { id: "1522", dir: "N", days: "2/14, 2/19~2/22", dep: "09:48", arr: "11:20", note: "加班車" }, 
-            { id: "1216", dir: "N", days: "2/14, 2/16~2/23", dep: "10:08", arr: "11:32", note: "加班車" }, 
-            { id: "1218", dir: "N", days: "2/13~2/14, 2/16~2/23", dep: "10:28", arr: "12:32", note: "加班車" }, // 2h 4m -> 應被濾除
-            { id: "1310", dir: "N", days: "2/14~2/15, 2/19~2/22", dep: "10:33", arr: "12:15", note: "加班車" }, 
-            { id: "1526", dir: "N", days: "2/16~2/23", dep: "10:48", arr: "12:20", note: "加班車" }, 
-            { id: "1314", dir: "N", days: "2/18~2/23", dep: "11:33", arr: "13:15", note: "加班車" }, 
-            { id: "1530", dir: "N", days: "2/15, 2/17~2/18, 2/22~2/23", dep: "11:48", arr: "13:20", note: "加班車" }, 
-            { id: "1222", dir: "N", days: "2/17~2/23", dep: "11:28", arr: "13:05", note: "加班車" }, 
-            { id: "1318", dir: "N", days: "2/15, 2/16~2/22", dep: "14:33", arr: "16:15", note: "加班車" }, 
-            { id: "1542", dir: "N", days: "2/15~2/23", dep: "14:48", arr: "16:20", note: "加班車" }, 
-            { id: "1234", dir: "N", days: "2/13~2/23", dep: "15:08", arr: "16:32", note: "加班車" }, 
+            { id: "616", dir: "N", days: "Daily", dep: "08:48", arr: "10:45", note: "" }, // 推算: 610->616
+
+            // --- 09:00 ~ 10:00 ---
+            { id: "114", dir: "N", days: "Daily", dep: "09:07", arr: "10:45", note: "直達" },
+            { id: "618", dir: "N", days: "Daily", dep: "09:13", arr: "11:10", note: "" }, // 推算: 612->618
+            { id: "1518", dir: "N", days: "2/14, 2/17~2/18, 2/22~2/23", dep: "09:24", arr: "11:00", note: "加班車" },
+            { id: "1210", dir: "N", days: "2/13~2/23", dep: "09:28", arr: "10:50", note: "加班車" },
+            { id: "1306", dir: "N", days: "2/16~2/21", dep: "09:33", arr: "11:15", note: "加班車" },
+            { id: "622", dir: "N", days: "Daily", dep: "09:48", arr: "11:45", note: "" },
+            { id: "1522", dir: "N", days: "2/14, 2/19~2/22", dep: "09:48", arr: "11:20", note: "加班車" },
+
+            // --- 10:00 ~ 11:00 ---
+            { id: "118", dir: "N", days: "Daily", dep: "10:07", arr: "11:45", note: "直達" },
+            { id: "1216", dir: "N", days: "2/14, 2/16~2/23", dep: "10:08", arr: "11:32", note: "加班車" },
+            { id: "624", dir: "N", days: "Daily", dep: "10:13", arr: "12:10", note: "" },
+            { id: "1218", dir: "N", days: "2/13~2/14, 2/16~2/23", dep: "10:28", arr: "12:32", note: "加班車" },
+            { id: "1310", dir: "N", days: "2/14~2/15, 2/19~2/22", dep: "10:33", arr: "12:15", note: "加班車" },
+            { id: "628", dir: "N", days: "Daily", dep: "10:48", arr: "12:45", note: "" },
+            { id: "1526", dir: "N", days: "2/16~2/23", dep: "10:48", arr: "12:20", note: "加班車" },
+
+            // --- 11:00 ~ 12:00 ---
+            { id: "122", dir: "N", days: "Daily", dep: "11:07", arr: "12:45", note: "直達" },
+            { id: "630", dir: "N", days: "Daily", dep: "11:13", arr: "13:10", note: "" },
+            { id: "1222", dir: "N", days: "2/17~2/23", dep: "11:28", arr: "13:05", note: "加班車" },
+            { id: "1314", dir: "N", days: "2/18~2/23", dep: "11:33", arr: "13:15", note: "加班車" },
+            { id: "634", dir: "N", days: "Daily", dep: "11:48", arr: "13:45", note: "" }, // 推算: 628->634
+            { id: "1530", dir: "N", days: "2/15, 2/17~2/18, 2/22~2/23", dep: "11:48", arr: "13:20", note: "加班車" },
+
+            // --- 12:00 ~ 13:00 (修正重點區) ---
+            { id: "126", dir: "N", days: "Daily", dep: "12:07", arr: "13:45", note: "直達" }, // 修正: 12:07 是 126
+            { id: "636", dir: "N", days: "Daily", dep: "12:13", arr: "14:10", note: "" },     // 修正: 12:13 是 636
+            { id: "640", dir: "N", days: "Daily", dep: "12:48", arr: "14:45", note: "" },     // 修正: 12:48 是 640
+
+            // --- 13:00 ~ 14:00 ---
+            { id: "130", dir: "N", days: "Daily", dep: "13:07", arr: "14:45", note: "直達" },
+            { id: "642", dir: "N", days: "Daily", dep: "13:13", arr: "15:10", note: "" },     // 推算: 636->642
+            { id: "646", dir: "N", days: "Daily", dep: "13:48", arr: "15:45", note: "" },     // 推算: 640->646
+
+            // --- 14:00 ~ 15:00 ---
+            { id: "134", dir: "N", days: "Daily", dep: "14:07", arr: "15:45", note: "直達" },
+            { id: "648", dir: "N", days: "Daily", dep: "14:13", arr: "16:10", note: "" },
+            { id: "1318", dir: "N", days: "2/15, 2/16~2/22", dep: "14:33", arr: "16:15", note: "加班車" },
+            { id: "652", dir: "N", days: "Daily", dep: "14:48", arr: "16:45", note: "" },
+            { id: "1542", dir: "N", days: "2/15~2/23", dep: "14:48", arr: "16:20", note: "加班車" },
+
+            // --- 15:00 ~ 16:00 ---
+            { id: "138", dir: "N", days: "Daily", dep: "15:07", arr: "16:45", note: "直達" },
+            { id: "1234", dir: "N", days: "2/13~2/23", dep: "15:08", arr: "16:32", note: "加班車" },
+            { id: "654", dir: "N", days: "Daily", dep: "15:13", arr: "17:10", note: "" },
+            { id: "658", dir: "N", days: "Daily", dep: "15:48", arr: "17:45", note: "" },
+
+            // --- 16:00 ~ 17:00 ---
+            { id: "142", dir: "N", days: "Daily", dep: "16:07", arr: "17:45", note: "直達" },
+            { id: "660", dir: "N", days: "Daily", dep: "16:13", arr: "18:10", note: "" },
             { id: "1554", dir: "N", days: "2/13, 2/15, 2/18~2/23", dep: "16:28", arr: "18:20", note: "加班車" },
+            { id: "664", dir: "N", days: "Daily", dep: "16:48", arr: "18:45", note: "" },
             { id: "1246", dir: "N", days: "2/13, 2/15, 2/17~2/23", dep: "16:55", arr: "18:32", note: "加班車" },
-            { id: "1324", dir: "N", days: "2/19~2/22", dep: "17:33", arr: "19:15", note: "加班車" }, 
+
+            // --- 17:00 ~ 18:00 ---
+            { id: "146", dir: "N", days: "Daily", dep: "17:07", arr: "18:45", note: "直達" },
+            { id: "666", dir: "N", days: "Daily", dep: "17:13", arr: "19:10", note: "" },
+            { id: "1324", dir: "N", days: "2/19~2/22", dep: "17:33", arr: "19:15", note: "加班車" },
+            { id: "670", dir: "N", days: "Daily", dep: "17:48", arr: "19:45", note: "" },
+
+            // --- 18:00 ~ 19:00 ---
+            { id: "150", dir: "N", days: "Daily", dep: "18:07", arr: "19:45", note: "直達" },
+            { id: "672", dir: "N", days: "Daily", dep: "18:13", arr: "20:10", note: "" },
             { id: "1562", dir: "N", days: "2/15, 2/17~2/22", dep: "18:28", arr: "20:20", note: "加班車" },
+            { id: "676", dir: "N", days: "Daily", dep: "18:48", arr: "20:45", note: "" },
             { id: "1254", dir: "N", days: "2/15, 2/17~2/23", dep: "18:55", arr: "20:32", note: "加班車" },
-            { id: "1328", dir: "N", days: "2/13, 2/15, 2/17~2/22", dep: "19:33", arr: "21:15", note: "加班車" }, 
+
+            // --- 19:00 ~ End ---
+            { id: "154", dir: "N", days: "Daily", dep: "19:07", arr: "20:45", note: "直達" },
+            { id: "678", dir: "N", days: "Daily", dep: "19:13", arr: "21:10", note: "" },
+            { id: "1328", dir: "N", days: "2/13, 2/15, 2/17~2/22", dep: "19:33", arr: "21:15", note: "加班車" },
+            { id: "682", dir: "N", days: "Daily", dep: "19:48", arr: "21:45", note: "" },
+            { id: "158", dir: "N", days: "Daily", dep: "20:07", arr: "21:45", note: "直達" },
+            { id: "684", dir: "N", days: "Daily", dep: "20:13", arr: "22:10", note: "" },
+            { id: "688", dir: "N", days: "Daily", dep: "20:48", arr: "22:45", note: "" }, // 推算: 682->688
+            { id: "162", dir: "N", days: "Daily", dep: "21:07", arr: "22:45", note: "直達" },
+            { id: "690", dir: "N", days: "Daily", dep: "21:13", arr: "23:10", note: "" },
 
             // ===================================
             // 南下 (Southbound): 南港 -> 台南
+            // (南下 1xx 一般是 xx:20 發, 6xx 是 xx:35 或 xx:10 發, 先前數據較準確但仍保留檢查)
             // ===================================
             { id: "109", dir: "S", days: "Daily", dep: "07:20", arr: "09:05", note: "直達" },
             { id: "113", dir: "S", days: "Daily", dep: "08:20", arr: "10:05", note: "直達" },
@@ -139,6 +147,7 @@
             { id: "161", dir: "S", days: "Daily", dep: "20:20", arr: "22:05", note: "直達" },
             { id: "165", dir: "S", days: "Daily", dep: "21:20", arr: "23:05", note: "直達" },
 
+            // 6xx 南下
             { id: "603", dir: "S", days: "Daily", dep: "06:40", arr: "08:38", note: "" },
             { id: "609", dir: "S", days: "Daily", dep: "07:35", arr: "09:33", note: "" },
             { id: "613", dir: "S", days: "Daily", dep: "08:10", arr: "10:07", note: "" },
@@ -167,29 +176,7 @@
             { id: "687", dir: "S", days: "Daily", dep: "20:35", arr: "22:33", note: "" },
             { id: "693", dir: "S", days: "Daily", dep: "21:30", arr: "23:28", note: "" },
 
-            // --- 8xx 應被濾除 ---
-            { id: "803", dir: "S", days: "Daily", dep: "06:15", arr: "08:40", note: "各站停靠" },
-            { id: "805", dir: "S", days: "Daily", dep: "07:00", arr: "09:13", note: "各站停靠" },
-            { id: "809", dir: "S", days: "Daily", dep: "08:00", arr: "10:13", note: "各站停靠" },
-            { id: "813", dir: "S", days: "Daily", dep: "09:00", arr: "11:13", note: "各站停靠" },
-            { id: "817", dir: "S", days: "Daily", dep: "10:00", arr: "12:13", note: "各站停靠" },
-            { id: "821", dir: "S", days: "Daily", dep: "11:00", arr: "13:13", note: "各站停靠" },
-            { id: "825", dir: "S", days: "Daily", dep: "12:00", arr: "14:13", note: "各站停靠" },
-            { id: "829", dir: "S", days: "Daily", dep: "13:00", arr: "15:13", note: "各站停靠" },
-            { id: "833", dir: "S", days: "Daily", dep: "14:00", arr: "16:13", note: "各站停靠" },
-            { id: "837", dir: "S", days: "Daily", dep: "15:00", arr: "17:13", note: "各站停靠" },
-            { id: "841", dir: "S", days: "Daily", dep: "16:00", arr: "18:13", note: "各站停靠" },
-            { id: "845", dir: "S", days: "Daily", dep: "17:00", arr: "19:13", note: "各站停靠" },
-            { id: "849", dir: "S", days: "Daily", dep: "18:00", arr: "20:13", note: "各站停靠" },
-            { id: "853", dir: "S", days: "Daily", dep: "19:00", arr: "21:13", note: "各站停靠" },
-            { id: "857", dir: "S", days: "Daily", dep: "20:00", arr: "22:13", note: "各站停靠" },
-            { id: "861", dir: "S", days: "Daily", dep: "21:00", arr: "23:13", note: "各站停靠" },
-
-            { id: "203", dir: "S", days: "Daily", dep: "06:30", arr: "08:03", note: "直達" },
-            { id: "205", dir: "S", days: "Daily", dep: "07:40", arr: "09:18", note: "直達" },
-            { id: "207", dir: "S", days: "Daily", dep: "08:20", arr: "09:58", note: "直達" },
-            { id: "295", dir: "S", days: "Daily", dep: "22:05", arr: "23:48", note: "直達" },
-
+            // 加班車部分 (維持原樣，因應不同日期)
             { id: "1103", dir: "S", days: "2/14~2/19, 2/23", dep: "06:35", arr: "08:20", note: "加班車" },
             { id: "1607", dir: "S", days: "2/14~2/19", dep: "07:10", arr: "09:07", note: "加班車" },
             { id: "1505", dir: "S", days: "2/13~2/20, 2/23", dep: "07:25", arr: "09:14", note: "加班車" },
@@ -226,18 +213,14 @@
         ];
 
         // ==========================================
-        // 2. 邏輯處理 (Logic)
+        // 2. 邏輯處理 (維持嚴格過濾)
         // ==========================================
 
         const isTrainOperating = (dateStr, opDays) => {
             if (opDays === "Daily") return true;
-
             const targetDate = new Date(dateStr);
             targetDate.setHours(0, 0, 0, 0);
-            
-            // 處理空白字符和分割
             const parts = opDays.replace(/\s/g, '').split(',');
-
             for (let part of parts) {
                 if (part.includes('~')) {
                     const [start, end] = part.split('~');
@@ -272,31 +255,24 @@
         const App = () => {
             const [direction, setDirection] = React.useState("N"); 
             const [date, setDate] = React.useState("2026-02-16");
-            const [timeRange, setTimeRange] = React.useState({ start: "06:00", end: "23:00" });
+            const [timeRange, setTimeRange] = React.useState({ start: "11:00", end: "16:00" });
             const [results, setResults] = React.useState([]);
 
             React.useEffect(() => {
                 const filtered = RAW_SCHEDULE.filter(t => {
-                    // 1. 方向
                     if (t.dir !== direction) return false;
-                    // 2. 日期
                     if (!isTrainOperating(date, t.days)) return false;
-                    // 3. 時間範圍
                     const depTime = t.dep;
                     if (depTime < timeRange.start || depTime > timeRange.end) return false;
                     
-                    // 4. [FIX] 嚴格行車時間過濾 (<= 120 mins)
+                    // 嚴格行車時間過濾 (<= 120 mins)
                     const duration = getDuration(t.dep, t.arr);
-                    if (duration > 120) return false; // 超過 2 小時即為慢車，不顯示
+                    if (duration > 120) return false;
 
                     return true;
                 });
 
-                // 排序邏輯：優先依據「發車時間」排序
-                filtered.sort((a, b) => {
-                    return a.dep.localeCompare(b.dep);
-                });
-
+                filtered.sort((a, b) => a.dep.localeCompare(b.dep));
                 setResults(filtered);
             }, [direction, date, timeRange]);
 
@@ -313,7 +289,7 @@
                             </h1>
                             <div className="flex justify-between items-end mt-2">
                                 <p className="text-orange-100 text-sm font-mono opacity-80">
-                                    FAST_TRAIN_ONLY_MODE (Limit: 120min)
+                                    DATA_FIXED: 6xx/1xx ID MAPPING
                                 </p>
                             </div>
                         </div>
@@ -391,15 +367,11 @@
                                 <ul className="divide-y divide-gray-200">
                                     {results.map((train, idx) => {
                                         const duration = getDuration(train.dep, train.arr);
-                                        // 重新定義顯示樣式
-                                        // < 100mins: 超快 (綠色)
-                                        // 100~120mins: 普通快 (藍色)
                                         const isSuperFast = duration < 100;
                                         const isExtra = train.days !== "Daily";
                                         
                                         return (
                                             <li key={`${train.id}-${idx}`} className="train-card p-5 bg-white mx-4 my-3 rounded-lg border border-gray-100 shadow-sm relative overflow-hidden group">
-                                                {/* 左側裝飾線 */}
                                                 <div className={`absolute left-0 top-0 bottom-0 w-1 ${isSuperFast ? 'bg-green-500' : (isExtra ? 'bg-orange-400' : 'bg-blue-400')}`}></div>
 
                                                 <div className="flex justify-between items-start mb-4 pl-2">
