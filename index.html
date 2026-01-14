@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 春節高鐵時刻表 (修正:刪除634)</title>
+    <title>2026 春節高鐵時刻表 (修正:真正刪除634)</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -59,7 +59,8 @@
             { id: "630", dir: "N", days: "Daily", dep: "11:13", arr: "13:10", note: "" },
             { id: "1222", dir: "N", days: "2/17~2/23", dep: "11:28", arr: "13:05", note: "加班快車" },
             { id: "1314", dir: "N", days: "2/18~2/23", dep: "11:33", arr: "13:15", note: "加班快車" },
-            // 修正重點：11:48 只有 1530 與 1634，刪除 634
+            
+            // 修正：11:48 只有 1530 與 1634，絕對沒有 634
             { id: "1530", dir: "N", days: "2/15, 2/17~2/18, 2/22~2/23", dep: "11:48", arr: "13:20", note: "加班快車" },
             { id: "1634", dir: "N", days: "2/18~2/23", dep: "11:48", arr: "13:45", note: "加班快車" }, 
 
@@ -88,7 +89,7 @@
             { id: "664", dir: "N", days: "Daily", dep: "16:48", arr: "18:45", note: "" },
             { id: "1246", dir: "N", days: "2/13, 2/15, 2/17~2/23", dep: "16:55", arr: "18:32", note: "加班快車" },
 
-            // [17:00-18:00]
+            // [17:00-End]
             { id: "666", dir: "N", days: "Daily", dep: "17:13", arr: "19:10", note: "" },
             { id: "1324", dir: "N", days: "2/19~2/22", dep: "17:33", arr: "19:15", note: "加班快車" },
             { id: "670", dir: "N", days: "Daily", dep: "17:48", arr: "19:45", note: "" },
@@ -268,7 +269,7 @@
                             </h1>
                             <div className="flex justify-between items-end mt-2">
                                 <p className="text-orange-100 text-sm font-mono opacity-80">
-                                    Final Fix: No 634. Only 1530/1634.
+                                    Fixed: No 634 (Verified)
                                 </p>
                             </div>
                         </div>
