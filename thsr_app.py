@@ -9,7 +9,7 @@ st.set_page_config(page_title="2026 春節高鐵時刻表查詢", page_icon="�
 st.title("🚅 2026 春節高鐵時刻查詢 Web App")
 st.markdown("""
 此工具支援 **Excel 檔案上傳** (由 batch_convert.py 產生)。
-程式會自動略過上方的標題列，尋找真正的時刻表欄位。
+程式會自動略過上方的標題列，並根據您選擇的方向自動切換起訖站。
 """)
 
 # ==========================================
@@ -40,7 +40,6 @@ def find_header_and_clean(df_raw):
         df_clean = df_raw.iloc[header_idx + 1:].reset_index(drop=True)
         return df_clean
     else:
-        # 找不到，就原樣回傳，讓後面邏輯去擋
         return df_raw
 
 def is_train_operating(selected_date_str, op_day_str):
@@ -78,9 +77,7 @@ def calculate_duration(t_start, t_end):
             return datetime.combine(datetime.today(), t)
         if isinstance(t, str):
             try:
-                # 有些 OCR 會把時間讀成 "10: 25" 多了空格
                 t = t.replace(" ", "")
-                # 處理 OCR 可能出現的錯誤格式，例如 "10:2" (缺碼)
                 if len(t.split(":")[1]) == 1: 
                     t += "0"
                 return datetime.strptime(t, "%H:%M")
@@ -106,48 +103,48 @@ def calculate_duration(t_start, t_end):
 # ==========================================
 if uploaded_file is not None:
     try:
-        # 讀取 Excel (header=None 代表先不要把第一列當表頭，讓我們自己找)
         xls = pd.ExcelFile(uploaded_file)
         sheet_names = xls.sheet_names
         
         st.sidebar.header("🔍 資料設定")
         selected_sheet = st.sidebar.selectbox("選擇時刻表 (Sheet)", sheet_names)
         
-        # 讀取原始資料 (不預設表頭)
+        # 讀取並清洗
         df_raw = pd.read_excel(uploaded_file, sheet_name=selected_sheet, header=None)
-        
-        # === 關鍵修改：自動清洗表頭 ===
         df = find_header_and_clean(df_raw)
-        
-        # 清洗欄位名稱
         df.columns = [str(c).replace("\n", "").strip() for c in df.columns]
         all_columns = df.columns.tolist()
         
         # 檢查是否有抓到正確欄位
-        possible_start_stations = ["南港", "左營", "Nangang", "Zuoying"]
-        has_valid_columns = any(s in all_columns for s in possible_start_stations)
+        possible_stations = ["南港", "左營", "台南", "Nangang", "Zuoying"]
+        has_valid_columns = any(s in all_columns for s in possible_stations)
         
         if not has_valid_columns:
-            st.error("⚠️ 無法偵測到車站欄位。請檢查 Excel 是否包含「車次」、「南港」等標題列。")
-            st.dataframe(df.head()) # 顯示前幾行幫忙除錯
+            st.error("⚠️ 無法偵測到車站欄位。請檢查 Excel 表頭是否正確。")
+            st.dataframe(df.head())
         else:
-            # --- 側邊欄：篩選條件 ---
             st.sidebar.divider()
             
-            # 智慧預設起訖站
-            default_start = 0
-            default_end = 0
+            # === 智慧判斷起訖站 ===
+            # 預設邏輯：南下(南港->台南)，北上(台南->南港)
+            target_start = "南港"
+            target_end = "台南"
             
-            # 嘗試找南港/左營/台南
-            for idx, col in enumerate(all_columns):
-                if "南港" in col or "Nangang" in col: default_start = idx
-                if "台南" in col or "Tainan" in col: default_end = idx
+            if "北上" in selected_sheet or "Northbound" in selected_sheet:
+                target_start = "台南"
+                target_end = "南港"
+            
+            # 找出這兩個站在 columns 中的位置 (index)
+            # 如果找不到，就預設選第 0 個和第 1 個
+            idx_start = all_columns.index(target_start) if target_start in all_columns else 0
+            idx_end = all_columns.index(target_end) if target_end in all_columns else (1 if len(all_columns)>1 else 0)
             
             col1, col2 = st.sidebar.columns(2)
             with col1:
-                start_station = st.selectbox("起點站", all_columns, index=default_start)
+                # key 是必要的，這樣切換 sheet 時才會強制重置選單
+                start_station = st.selectbox("起點站", all_columns, index=idx_start, key=f"s_{selected_sheet}")
             with col2:
-                end_station = st.selectbox("終點站", all_columns, index=default_end)
+                end_station = st.selectbox("終點站", all_columns, index=idx_end, key=f"e_{selected_sheet}")
                 
             date_options = [f"2026/02/{d:02d}" for d in range(13, 24)]
             selected_date = st.sidebar.selectbox("選擇日期", date_options)
@@ -156,8 +153,6 @@ if uploaded_file is not None:
             
             # 開始過濾
             results = []
-            
-            # 寬鬆比對欄位名稱
             train_col = next((c for c in df.columns if "車次" in c or "Train" in c), None)
             day_col = next((c for c in df.columns if "行駛日" in c or "Day" in c), None)
 
@@ -169,10 +164,8 @@ if uploaded_file is not None:
                     t_start = row[start_station]
                     t_end = row[end_station]
                     
-                    # 排除表頭重複讀取到的狀況
                     if str(train_no).strip() == train_col: continue
 
-                    # 1. 判斷行駛日
                     op_day = "每日"
                     if day_col and pd.notna(row[day_col]):
                         op_day = str(row[day_col])
@@ -180,15 +173,12 @@ if uploaded_file is not None:
                     if not is_train_operating(selected_date, op_day):
                         continue
 
-                    # 2. 判斷是否有時刻
                     if pd.isna(t_start) or pd.isna(t_end) or str(t_start).strip() in ["-", "nan"]:
                         continue
 
-                    # 3. 判斷時間範圍
                     try:
                         check_time = t_start
                         if isinstance(check_time, str):
-                            # 簡單清洗
                             check_time = check_time.replace(" ", "")
                             if len(check_time.split(":")[1]) == 1: check_time += "0"
                             check_time = datetime.strptime(check_time, "%H:%M").time()
@@ -198,7 +188,6 @@ if uploaded_file is not None:
                     except:
                         continue
 
-                    # 4. 計算時間
                     duration = calculate_duration(t_start, t_end)
                     
                     if duration <= 120:
@@ -210,14 +199,12 @@ if uploaded_file is not None:
                             "備註": op_day
                         })
 
-                # 顯示結果
                 if results:
                     result_df = pd.DataFrame(results)
-                    # 嘗試統一格式以便排序
                     try:
                          result_df = result_df.sort_values(by="發車時間")
                     except:
-                         pass # 如果排序失敗(格式混亂)就維持原樣
+                         pass
                     
                     st.subheader(f"查詢結果：{selected_date} ({start_station} → {end_station})")
                     st.write(f"共找到 **{len(result_df)}** 班符合條件的直達/快車（行車 ≤ 120 分）：")
@@ -233,11 +220,9 @@ if uploaded_file is not None:
                     )
                 else:
                     st.warning("⚠️ 找不到符合條件的班次。")
-                    st.markdown("**除錯提示：** 若明明有車卻沒跑出來，可能是 OCR 抓到的時間格式有空格 (如 `10: 20`)，程式已盡量處理，但仍可能有漏網之魚。")
 
     except Exception as e:
         st.error(f"程式執行錯誤：{e}")
-        st.info("請確認上傳的 Excel 檔案內容是否正常。")
 
 else:
     st.info("👆 請在上方上傳 Excel 檔案以開始查詢。")
