@@ -1,15 +1,15 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 
 # ==========================================
 # 設定頁面
 # ==========================================
-st.set_page_config(page_title="2026 春節高鐵時刻表查詢", page_icon="🚅")
-st.title("🚅 2026 春節高鐵時刻查詢 Web App")
+st.set_page_config(page_title="高鐵連假時刻表查詢", page_icon="🚅")
+st.title("🚅 高鐵連假時刻查詢 Web App")
 st.markdown("""
 此工具支援 **Excel 檔案上傳** (由 batch_convert.py 產生)。
-程式會自動略過上方的標題列，並根據您選擇的方向自動切換起訖站。
+程式會自動略過上方的標題列，自動抓取行駛日期，並根據您選擇的方向切換起訖站。
 """)
 
 # ==========================================
@@ -27,20 +27,63 @@ def find_header_and_clean(df_raw):
     """
     header_idx = -1
     for i, row in df_raw.head(20).iterrows():
-        # 將該列轉為字串並串接，方便搜尋
         row_str = " ".join(row.astype(str).values)
         if "車次" in row_str or "Train" in row_str:
             header_idx = i
             break
     
     if header_idx != -1:
-        # 設定新的表頭
         df_raw.columns = df_raw.iloc[header_idx]
-        # 只保留表頭之後的資料
         df_clean = df_raw.iloc[header_idx + 1:].reset_index(drop=True)
         return df_clean
     else:
         return df_raw
+
+def extract_valid_dates(df, day_col, year):
+    """從行駛日欄位動態抓取所有出現過的日期"""
+    dates_set = set()
+    if not day_col or day_col not in df.columns:
+        # 如果找不到欄位，預設給當天
+        return [datetime.today().strftime(f"{year}/%m/%d")]
+        
+    for val in df[day_col].dropna().astype(str):
+        if val == "每日" or val.strip() in ["-", "nan", "NaT", ""]:
+            continue
+        
+        parts = val.replace(" ", "").replace("~", "-").split(",")
+        for part in parts:
+            if "-" in part:
+                try:
+                    start_s, end_s = part.split("-")
+                    sm, sd = map(int, start_s.split("/"))
+                    em, ed = map(int, end_s.split("/"))
+                    
+                    start_dt = datetime(year, sm, sd)
+                    end_dt = datetime(year, em, ed)
+                    
+                    # 處理跨年的情況 (例如 12/30-1/5)
+                    if end_dt < start_dt:
+                        end_dt = end_dt.replace(year=year + 1)
+                        
+                    delta = end_dt - start_dt
+                    for i in range(delta.days + 1):
+                        dates_set.add((start_dt + timedelta(days=i)).strftime("%Y/%m/%d"))
+                except:
+                    continue
+            else:
+                try:
+                    m, d = map(int, part.split("/"))
+                    dt = datetime(year, m, d)
+                    dates_set.add(dt.strftime("%Y/%m/%d"))
+                except:
+                    continue
+                    
+    if not dates_set:
+        # 如果全部都是"每日"或沒有明確日期，產生前後7天的選單作為備案
+        base = datetime.today().replace(year=year)
+        return [(base + timedelta(days=i)).strftime("%Y/%m/%d") for i in range(-7, 8)]
+        
+    return sorted(list(dates_set))
 
 def is_train_operating(selected_date_str, op_day_str):
     if not isinstance(op_day_str, str): 
@@ -59,8 +102,18 @@ def is_train_operating(selected_date_str, op_day_str):
                 def parse_md(s):
                     m, d = map(int, s.split("/"))
                     return m * 100 + d
-                if parse_md(start_s) <= parse_md(sel_md) <= parse_md(end_s):
-                    return True
+                
+                # 處理跨年區間的比較邏輯
+                start_val = parse_md(start_s)
+                end_val = parse_md(end_s)
+                target_val = parse_md(sel_md)
+                
+                if start_val > end_val: # 代表有跨年
+                    if target_val >= start_val or target_val <= end_val:
+                        return True
+                else:
+                    if start_val <= target_val <= end_val:
+                        return True
             except:
                 continue
         else:
@@ -107,6 +160,11 @@ if uploaded_file is not None:
         sheet_names = xls.sheet_names
         
         st.sidebar.header("🔍 資料設定")
+        
+        # === 新增：年份動態設定 ===
+        current_year = datetime.today().year
+        selected_year = st.sidebar.number_input("設定年份", value=current_year, step=1)
+        
         selected_sheet = st.sidebar.selectbox("選擇時刻表 (Sheet)", sheet_names)
         
         # 讀取並清洗
@@ -126,7 +184,6 @@ if uploaded_file is not None:
             st.sidebar.divider()
             
             # === 智慧判斷起訖站 ===
-            # 預設邏輯：南下(南港->台南)，北上(台南->南港)
             target_start = "南港"
             target_end = "台南"
             
@@ -134,19 +191,19 @@ if uploaded_file is not None:
                 target_start = "台南"
                 target_end = "南港"
             
-            # 找出這兩個站在 columns 中的位置 (index)
-            # 如果找不到，就預設選第 0 個和第 1 個
             idx_start = all_columns.index(target_start) if target_start in all_columns else 0
             idx_end = all_columns.index(target_end) if target_end in all_columns else (1 if len(all_columns)>1 else 0)
             
             col1, col2 = st.sidebar.columns(2)
             with col1:
-                # key 是必要的，這樣切換 sheet 時才會強制重置選單
                 start_station = st.selectbox("起點站", all_columns, index=idx_start, key=f"s_{selected_sheet}")
             with col2:
                 end_station = st.selectbox("終點站", all_columns, index=idx_end, key=f"e_{selected_sheet}")
                 
-            date_options = [f"2026/02/{d:02d}" for d in range(13, 24)]
+            # === 新增：動態解析日期範圍 ===
+            day_col = next((c for c in df.columns if "行駛日" in c or "Day" in c), None)
+            date_options = extract_valid_dates(df, day_col, selected_year)
+            
             selected_date = st.sidebar.selectbox("選擇日期", date_options)
             
             time_range = st.sidebar.slider("發車時間範圍", value=(time(6, 0), time(23, 59)), format="HH:mm")
@@ -154,7 +211,6 @@ if uploaded_file is not None:
             # 開始過濾
             results = []
             train_col = next((c for c in df.columns if "車次" in c or "Train" in c), None)
-            day_col = next((c for c in df.columns if "行駛日" in c or "Day" in c), None)
 
             if not train_col:
                 st.error("找不到「車次」欄位，請檢查 Excel 表頭。")
